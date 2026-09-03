@@ -1,0 +1,193 @@
+{
+  "metadata": {
+    "start_date": "2023-10-17",
+    "end_date": "2026-07-12",
+    "total_days": 1000,
+    "assets_analyzed": 39,
+    "strategy_version": "BTH_C2LR v2.0"
+  },
+  "entry_forward_returns": {
+    "fwd_1d": {
+      "mean_pct": 0.95,
+      "median_pct": -0.13,
+      "std_pct": 6.56,
+      "win_rate_pct": 48.73,
+      "positive_skew": 2.386,
+      "profit_factor": 1.588
+    },
+    "fwd_3d": {
+      "mean_pct": 2.0,
+      "median_pct": 0.21,
+      "std_pct": 14.52,
+      "win_rate_pct": 51.27,
+      "positive_skew": 3.666,
+      "profit_factor": 1.625
+    },
+    "fwd_5d": {
+      "mean_pct": 3.72,
+      "median_pct": -0.0,
+      "std_pct": 17.87,
+      "win_rate_pct": 48.73,
+      "positive_skew": 2.776,
+      "profit_factor": 2.033
+    },
+    "fwd_10d": {
+      "mean_pct": 5.47,
+      "median_pct": 0.51,
+      "std_pct": 28.23,
+      "win_rate_pct": 51.78,
+      "positive_skew": 3.469,
+      "profit_factor": 1.993
+    },
+    "fwd_30d": {
+      "mean_pct": 10.7,
+      "median_pct": -1.82,
+      "std_pct": 58.33,
+      "win_rate_pct": 46.19,
+      "positive_skew": 3.752,
+      "profit_factor": 2.042
+    }
+  },
+  "exit_typology_and_loss_avoidance": {
+    "EXIT_CASH_GUARD": {
+      "trade_count": 73,
+      "pct_of_exits": 37.1,
+      "realized_pnl_mean_pct": 0.12,
+      "realized_pnl_median_pct": -3.24,
+      "win_rate_pct": 31.5,
+      "avg_holding_days": 4.8,
+      "median_holding_days": 3.0,
+      "max_holding_days": 29,
+      "loss_avoidance": {
+        "fwd_5d_mean_pct": 7.09,
+        "fwd_5d_downside_pct": 31.5,
+        "fwd_10d_mean_pct": 10.44,
+        "fwd_10d_downside_pct": 46.6,
+        "fwd_30d_mean_pct": 14.08,
+        "fwd_30d_downside_pct": 58.9
+      }
+    },
+    "EXIT_HYSTERESIS_DROP": {
+      "trade_count": 40,
+      "pct_of_exits": 20.3,
+      "realized_pnl_mean_pct": 1.05,
+      "realized_pnl_median_pct": -0.32,
+      "win_rate_pct": 45.0,
+      "avg_holding_days": 4.5,
+      "median_holding_days": 3.0,
+      "max_holding_days": 30,
+      "loss_avoidance": {
+        "fwd_5d_mean_pct": 1.61,
+        "fwd_5d_downside_pct": 47.5,
+        "fwd_10d_mean_pct": 2.39,
+        "fwd_10d_downside_pct": 45.0,
+        "fwd_30d_mean_pct": 5.35,
+        "fwd_30d_downside_pct": 42.5
+      }
+    },
+    "EXIT_REGIME_PRUNING": {
+      "trade_count": 47,
+      "pct_of_exits": 23.9,
+      "realized_pnl_mean_pct": -0.1,
+      "realized_pnl_median_pct": -1.87,
+      "win_rate_pct": 36.2,
+      "avg_holding_days": 3.6,
+      "median_holding_days": 2.0,
+      "max_holding_days": 21,
+      "loss_avoidance": {
+        "fwd_5d_mean_pct": -1.06,
+        "fwd_5d_downside_pct": 59.6,
+        "fwd_10d_mean_pct": -0.4,
+        "fwd_10d_downside_pct": 61.7,
+        "fwd_30d_mean_pct": 9.79,
+        "fwd_30d_downside_pct": 59.6
+      }
+    },
+    "EXIT_TREND_FAIL": {
+      "trade_count": 37,
+      "pct_of_exits": 18.8,
+      "realized_pnl_mean_pct": 4.45,
+      "realized_pnl_median_pct": -4.29,
+      "win_rate_pct": 32.4,
+      "avg_holding_days": 13.6,
+      "median_holding_days": 10.0,
+      "max_holding_days": 50,
+      "loss_avoidance": {
+        "fwd_5d_mean_pct": -0.57,
+        "fwd_5d_downside_pct": 51.4,
+        "fwd_10d_mean_pct": 0.74,
+        "fwd_10d_downside_pct": 43.2,
+        "fwd_30d_mean_pct": 0.84,
+        "fwd_30d_downside_pct": 62.2
+      }
+    }
+  },
+  "regime_markov_transitions": {
+    "BROAD_BULL": {
+      "BROAD_BULL": 87.9,
+      "CASH_GUARD": 1.1,
+      "NORMAL_BULL": 8.8,
+      "SELECTIVE_BULL": 2.2
+    },
+    "CASH_GUARD": {
+      "BROAD_BULL": 0.6,
+      "CASH_GUARD": 93.1,
+      "NORMAL_BULL": 1.4,
+      "SELECTIVE_BULL": 4.9
+    },
+    "NORMAL_BULL": {
+      "BROAD_BULL": 22.9,
+      "CASH_GUARD": 4.2,
+      "NORMAL_BULL": 55.1,
+      "SELECTIVE_BULL": 17.8
+    },
+    "SELECTIVE_BULL": {
+      "BROAD_BULL": 2.6,
+      "CASH_GUARD": 22.4,
+      "NORMAL_BULL": 19.0,
+      "SELECTIVE_BULL": 56.0
+    }
+  },
+  "regime_durations": {
+    "BROAD_BULL": {
+      "episodes": 33,
+      "mean_days": 8.2,
+      "median_days": 3.0,
+      "max_days": 42,
+      "total_days": 272,
+      "time_in_regime_pct": 27.2
+    },
+    "CASH_GUARD": {
+      "episodes": 35,
+      "mean_days": 14.1,
+      "median_days": 3.0,
+      "max_days": 96,
+      "total_days": 494,
+      "time_in_regime_pct": 49.4
+    },
+    "NORMAL_BULL": {
+      "episodes": 53,
+      "mean_days": 2.2,
+      "median_days": 2.0,
+      "max_days": 10,
+      "total_days": 118,
+      "time_in_regime_pct": 11.8
+    },
+    "SELECTIVE_BULL": {
+      "episodes": 51,
+      "mean_days": 2.3,
+      "median_days": 2.0,
+      "max_days": 7,
+      "total_days": 116,
+      "time_in_regime_pct": 11.6
+    }
+  },
+  "hysteresis_efficiency": {
+    "strict_top_k_switches": 249,
+    "hysteresis_buffer_switches": 188,
+    "churning_reduction_pct": 24.5,
+    "estimated_annual_trades_saved": 22.3,
+    "estimated_fee_savings_pct": 3.34
+  },
+  "total_completed_trades": 197
+}

@@ -15,11 +15,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
-COMBINED_DATA_PATH = ROOT / "results_portfolio" / "binance_global_pit" / "combined_dashboard_data.json"
-OUT_HTML = ROOT / "binance_c2lr_signals_dashboard.html"
-ARTIFACT_DIR = Path("/Users/nok/.gemini/antigravity/brain/1c2ca6c3-8199-41b1-81b1-a55d08d7bcfd")
-ARTIFACT_HTML = ARTIFACT_DIR / "binance_c2lr_signals_dashboard.html"
+ROOT = Path(__file__).resolve().parent.parent
+COMBINED_DATA_PATH = ROOT / "data" / "combined_dashboard_data.json"
+OUT_HTML = ROOT / "index.html"
 
 HTML_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="th" class="dark">
@@ -1855,10 +1853,8 @@ def generate_html():
     html = HTML_TEMPLATE.replace("__COMBINED_DATA__", json_str)
 
     OUT_HTML.write_text(html, encoding="utf-8")
-    ARTIFACT_HTML.write_text(html, encoding="utf-8")
-    print(f"[+] Successfully wrote Enhanced Dashboard HTML:")
-    print(f"    - Workspace: {OUT_HTML} ({len(html):,} bytes)")
-    print(f"    - Artifact:  {ARTIFACT_HTML}")
+    print(f"[+] Successfully generated Dashboard HTML:")
+    print(f"    - Output: {OUT_HTML} ({len(html):,} bytes)")
 
 
 if __name__ == "__main__":

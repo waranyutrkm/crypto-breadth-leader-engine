@@ -18,9 +18,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent
-OUT_DIR = ROOT / "results_portfolio" / "bth_c2lr_entry_exit_eda"
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = ROOT / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 STABLECOINS = {
     "USDCUSDT", "FDUSDUSDT", "TUSDUSDT", "USDPUSDT", "BUSDUSDT",
@@ -255,7 +255,7 @@ def generate_market_snapshot() -> dict:
     coin_data.sort(key=lambda x: (signal_priority.get(x["signal"], 99), -x["momentum_score"]))
 
     # Load historical EDA summary if exists
-    eda_summary_path = OUT_DIR / "entry_exit_eda_summary.json"
+    eda_summary_path = DATA_DIR / "entry_exit_eda_summary.json"
     eda_summary = {}
     if eda_summary_path.exists():
         with open(eda_summary_path, "r", encoding="utf-8") as f:
@@ -291,9 +291,18 @@ def generate_market_snapshot() -> dict:
         }
     }
 
-    out_file = OUT_DIR / "binance_live_signals_snapshot.json"
+    out_file = DATA_DIR / "binance_live_signals_snapshot.json"
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(snapshot, f, indent=2)
+
+    combined_file = DATA_DIR / "combined_dashboard_data.json"
+    if combined_file.exists():
+        with open(combined_file, "r", encoding="utf-8") as f:
+            combined = json.load(f)
+        combined["live_snapshot"] = snapshot
+        with open(combined_file, "w", encoding="utf-8") as f:
+            json.dump(combined, f, ensure_ascii=False)
+        print(f"[+] Updated {combined_file}")
 
     print(f"\n[+] Snapshot saved to {out_file}")
     print(f"    Macro Regime: {regime}")
