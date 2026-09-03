@@ -30,20 +30,35 @@ STABLECOINS = {
 LEVERAGED_SUFFIXES = ("UPUSDT", "DOWNUSDT", "BULLUSDT", "BEARUSDT")
 
 
-def fetch_json(url: str, timeout: int = 10) -> dict | list:
-    req = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "application/json",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+BINANCE_ENDPOINTS = [
+    "https://data-api.binance.vision/api/v3",
+    "https://api.binance.com/api/v3",
+    "https://api1.binance.com/api/v3",
+    "https://api2.binance.com/api/v3",
+    "https://api3.binance.com/api/v3",
+]
+
+
+def fetch_binance_api(path: str, timeout: int = 10) -> dict | list:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+    }
+    last_err = None
+    for base in BINANCE_ENDPOINTS:
+        url = f"{base}/{path.lstrip('/')}"
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except Exception as e:
+            last_err = e
+            continue
+    raise RuntimeError(f"All Binance endpoints failed for {path}: {last_err}")
 
 
 def get_top_usdt_pairs(limit: int = 80) -> list[dict]:
-    tickers = fetch_json("https://api.binance.com/api/v3/ticker/24hr")
+    tickers = fetch_binance_api("ticker/24hr")
     filtered = []
     for t in tickers:
         sym = t.get("symbol", "")
@@ -60,8 +75,8 @@ def get_top_usdt_pairs(limit: int = 80) -> list[dict]:
 
 def fetch_klines_for_symbol(symbol: str, limit: int = 150) -> pd.Series | None:
     try:
-        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1d&limit={limit}"
-        data = fetch_json(url, timeout=8)
+        path = f"klines?symbol={symbol}&interval=1d&limit={limit}"
+        data = fetch_binance_api(path, timeout=8)
         if not data or len(data) < 125:
             return None
         closes = [float(k[4]) for k in data]
