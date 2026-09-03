@@ -4,7 +4,7 @@
 Designed around the user's primary mental model:
 1. วันนี้ต้องทำอะไร? (What to do TODAY: Buy, Sell, Hold, and exact USDT amount).
 2. ก่อนหน้านี้ทำอะไรมาบ้าง? (Past Action History & Timeline: plain-language trade logs).
-3. Advanced technical details are cleanly collapsible at the bottom.
+3. สลับแผนแล้วเหรียญและสัดส่วนต้องเปลี่ยนทันที (BTH_C2LR vs Fast-Alpha vs Core-Satellite).
 """
 
 from __future__ import annotations
@@ -72,14 +72,17 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- Quick Strategy Switcher -->
-    <div class="flex items-center gap-2">
+    <!-- Quick Strategy Switcher (3 Strategies) -->
+    <div class="flex flex-wrap items-center gap-2">
       <div class="flex rounded-lg bg-[#0e131d] border border-[#232f45] p-1 text-xs font-semibold">
         <button id="btn-strat-bth" onclick="setStrategy('BTH_C2LR')" class="px-3 py-1.5 rounded bg-blue-600 text-white font-bold transition">
           🏆 แผนหลัก (BTH_C2LR)
         </button>
         <button id="btn-strat-fast" onclick="setStrategy('FAST_ALPHA')" class="px-3 py-1.5 rounded text-slate-400 hover:text-white transition">
           🚀 คลื่นเร็ว (Fast-Alpha)
+        </button>
+        <button id="btn-strat-core" onclick="setStrategy('CORE_SATELLITE')" class="px-3 py-1.5 rounded text-slate-400 hover:text-white transition">
+          🛡️ ผสมสถาบัน (Core-Sat)
         </button>
       </div>
       <a href="https://github.com/waranyutrkm/crypto-breadth-leader-engine" target="_blank" class="rounded-lg bg-[#151c2a] hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition flex items-center gap-1.5" title="อ่านคู่มือและสูตรคำนวณฉบับเต็มบน GitHub">
@@ -104,7 +107,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <div class="card-dark rounded-2xl p-5 relative overflow-hidden border border-blue-500/30">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1e283b] pb-4 mb-4">
         <div>
-          <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">สถานะตลาดภาพรวมวันนี้ (Market Regime):</div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">กำลังใช้งานกลยุทธ์:</span>
+            <span class="text-xs font-bold text-blue-400 px-2 py-0.5 rounded bg-blue-500/15 border border-blue-500/30" id="hero-strategy-badge">--</span>
+          </div>
           <div class="text-2xl font-black flex items-center gap-2.5" id="hero-regime-title">
             <span class="h-3 w-3 rounded-full bg-emerald-400 animate-pulse"></span>
             <span class="text-white" id="hero-regime-name">--</span>
@@ -155,15 +161,15 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
               <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
                 🟢 2. ต้องซื้อ (Buy Orders)
               </span>
-              <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold" id="cnt-buy-badge">5 ผู้นำ</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold" id="cnt-buy-badge">0 ผู้นำ</span>
             </div>
-            <p class="text-[11px] text-slate-400 mb-3">เหรียญผู้นำที่แข็งแกร่งที่สุดในตลาดที่ต้องเข้าซื้อตามสัดส่วน</p>
+            <p class="text-[11px] text-slate-400 mb-3" id="buy-column-desc">เหรียญผู้นำที่แข็งแกร่งที่สุดตามเกณฑ์ของแผนนี้</p>
             <div id="buy-coins-list" class="space-y-1.5 font-mono text-xs">
               <!-- Injected by JS -->
             </div>
           </div>
-          <div class="text-[10px] text-slate-500 mt-3 pt-2 border-t border-emerald-900/30">
-            * สัดส่วนเท่ากันตัวละ 19% (รวม 95%) ถือเงินสด 5%
+          <div class="text-[10px] text-slate-500 mt-3 pt-2 border-t border-emerald-900/30" id="buy-column-footer">
+            * คำนวณสัดส่วนตามอัลกอริทึมของกลยุทธ์
           </div>
         </div>
 
@@ -174,7 +180,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
               <span class="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
                 🔵 3. ถือต่อ (Hold / Run)
               </span>
-              <span class="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold">Buffer Rank 1–8</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold" id="hold-buffer-badge">Buffer</span>
             </div>
             <p class="text-[11px] text-slate-400 mb-3">เหรียญที่ถืออยู่เดิมและยังอยู่ในเกราะ Buffer ปล่อยให้กำไรวิ่งต่อ</p>
             <div id="hold-coins-list" class="space-y-1.5 font-mono text-xs">
@@ -182,7 +188,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             </div>
           </div>
           <div class="text-[10px] text-slate-500 mt-3 pt-2 border-t border-blue-900/30">
-            * ไม่หลุดอันดับ 8 ไม่ต้องรีบขายหมู ช่วยประหยัดค่าคอม
+            * ไม่หลุดอันดับบัฟเฟอร์ ไม่ต้องรีบขายหมู ช่วยประหยัดค่าคอม
           </div>
         </div>
       </div>
@@ -199,16 +205,16 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
         <div class="flex items-center gap-4 text-xs font-mono">
           <div>
-            <span class="text-slate-400 text-[10px] block">ซื้อเหรียญละ:</span>
-            <strong class="text-emerald-400 font-bold text-sm" id="calc-per-coin">$1,900 USDT</strong>
+            <span class="text-slate-400 text-[10px] block">ยอดซื้อรวม (Crypto):</span>
+            <strong class="text-emerald-400 font-bold text-sm" id="calc-total-crypto">$0.00 USDT</strong>
           </div>
           <div class="border-l border-slate-700 pl-4">
-            <span class="text-slate-400 text-[10px] block">สำรองเงินสด:</span>
-            <strong class="text-amber-400 font-bold text-sm" id="calc-cash-reserve">$500 USDT</strong>
+            <span class="text-slate-400 text-[10px] block">สำรองเงินสด (Cash):</span>
+            <strong class="text-amber-400 font-bold text-sm" id="calc-cash-reserve">$0.00 USDT</strong>
           </div>
           <div class="border-l border-slate-700 pl-4">
-            <span class="text-slate-400 text-[10px] block">ค่าคอมรวม:</span>
-            <strong class="text-slate-300 font-bold text-sm" id="calc-fee-est">~$7.12 USDT</strong>
+            <span class="text-slate-400 text-[10px] block">ค่าคอม Binance (0.075%):</span>
+            <strong class="text-slate-300 font-bold text-sm" id="calc-fee-est">~$0.00 USDT</strong>
           </div>
         </div>
       </div>
@@ -246,7 +252,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <summary class="flex items-center justify-between cursor-pointer font-bold text-xs text-slate-400 hover:text-white uppercase tracking-wider select-none">
         <span class="flex items-center gap-2">
           <svg class="h-4 w-4 text-blue-400 group-open:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-          🔍 ดูตารางสแกนและค่าทางเทคนิคทั้งหมด 73 เหรียญในตลาด (คลิกเพื่อขยาย)
+          🔍 ดูตารางสแกนและค่าทางเทคนิคทั้งหมด 72 เหรียญในตลาด (คลิกเพื่อขยาย)
         </span>
         <span class="text-[11px] text-blue-400 font-mono">Full Scanner Matrix</span>
       </summary>
@@ -260,8 +266,9 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
               <th class="py-2.5 px-3 text-center">Signal</th>
               <th class="py-2.5 px-3 text-right">Price ($)</th>
               <th class="py-2.5 px-3 text-right">24h %</th>
-              <th class="py-2.5 px-3 text-right">Momentum</th>
-              <th class="py-2.5 px-3 text-right">R30d</th>
+              <th class="py-2.5 px-3 text-right">14d %</th>
+              <th class="py-2.5 px-3 text-right">30d %</th>
+              <th class="py-2.5 px-3 text-right">Score</th>
               <th class="py-2.5 px-3 text-center">Trend Gate</th>
               <th class="py-2.5 px-3">เหตุผล</th>
             </tr>
@@ -282,15 +289,15 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   <!-- DATA & SCRIPTS -->
   <script>
     const MASTER_DATA = __COMBINED_DATA__;
-    let currentStrategy = 'BTH_C2LR'; // 'BTH_C2LR' or 'FAST_ALPHA'
+    let currentStrategy = 'BTH_C2LR'; // 'BTH_C2LR' | 'FAST_ALPHA' | 'CORE_SATELLITE'
+    let currentStrategyPicks = null;
 
     document.addEventListener('DOMContentLoaded', () => {
       initApp();
     });
 
     function initApp() {
-      renderTodayAction();
-      updateQuickCalc();
+      setStrategy('BTH_C2LR');
       renderPastTimeline();
       renderRawCoinsTable();
     }
@@ -299,16 +306,163 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       currentStrategy = strat;
       const btnBth = document.getElementById('btn-strat-bth');
       const btnFast = document.getElementById('btn-strat-fast');
+      const btnCore = document.getElementById('btn-strat-core');
 
-      if (strat === 'BTH_C2LR') {
-        btnBth.className = 'px-3 py-1.5 rounded bg-blue-600 text-white font-bold transition';
-        btnFast.className = 'px-3 py-1.5 rounded text-slate-400 hover:text-white transition';
-      } else {
-        btnFast.className = 'px-3 py-1.5 rounded bg-blue-600 text-white font-bold transition';
-        btnBth.className = 'px-3 py-1.5 rounded text-slate-400 hover:text-white transition';
-      }
+      // Update button highlights
+      btnBth.className = (strat === 'BTH_C2LR') ? 'px-3 py-1.5 rounded bg-blue-600 text-white font-bold transition' : 'px-3 py-1.5 rounded text-slate-400 hover:text-white transition';
+      btnFast.className = (strat === 'FAST_ALPHA') ? 'px-3 py-1.5 rounded bg-blue-600 text-white font-bold transition' : 'px-3 py-1.5 rounded text-slate-400 hover:text-white transition';
+      btnCore.className = (strat === 'CORE_SATELLITE') ? 'px-3 py-1.5 rounded bg-blue-600 text-white font-bold transition' : 'px-3 py-1.5 rounded text-slate-400 hover:text-white transition';
+
+      // Dynamically calculate picks for this strategy!
+      currentStrategyPicks = computeStrategyPicks(strat);
       renderTodayAction();
       updateQuickCalc();
+    }
+
+    // =================================================================
+    // DYNAMIC STRATEGY ENGINE
+    // =================================================================
+    function computeStrategyPicks(strat) {
+      const coins = [...MASTER_DATA.live_snapshot.coins_table];
+      const mr = MASTER_DATA.live_snapshot.macro_regime;
+
+      if (strat === 'BTH_C2LR') {
+        // 🏆 Strategy 1: BTH_C2LR (Top 5 Multi-Scale Momentum: 30/60/120 days)
+        const eligible = coins.filter(c => c.trend_ok && (c.r30 > 0) && (c.r60 > 0));
+        eligible.sort((a, b) => b.momentum_score - a.momentum_score);
+
+        const leaders = eligible.slice(0, 5).map((c, idx) => ({
+          symbol: c.symbol,
+          close: c.close,
+          price_change_24h: c.price_change_24h,
+          rank_display: '#' + (idx + 1),
+          weight_pct: 19.0,
+          metric_label: 'Momentum Score',
+          metric_val: '+' + (c.momentum_score * 100).toFixed(0) + '%',
+          reason: 'ผู้นำโมเมนตัม 3 มิติเวลาอันดับ #' + (idx + 1)
+        }));
+
+        return {
+          title: '🏆 แผนหลัก BTH_C2LR (Top 5 Multi-Scale)',
+          badgeText: '🏆 แผนหลัก (BTH_C2LR v2.0)',
+          desc: 'กระจายลงทุนใน Top 5 ผู้นำที่แข็งแกร่งที่สุดใน 3 มิติเวลา (30/60/120 วัน) ถือเท่ากันตัวละ 19% สำรองเงินสด 5%',
+          cryptoPct: 95.0,
+          cashPct: 5.0,
+          bufferBadge: 'Buffer Rank 1–8',
+          buyDesc: 'เข้าซื้อ Top 5 ผู้นำ สัดส่วนตัวละ 19% เท่ากัน',
+          buyFooter: '* กระจายเท่ากัน 5 ตัว รวม 95% ถือเงินสด 5% USDT',
+          leaders: leaders,
+          sellCoins: coins.filter(c => c.signal === 'SELL'),
+          holdCoins: (MASTER_DATA.historical_ledger && MASTER_DATA.historical_ledger.length > 0)
+            ? MASTER_DATA.historical_ledger[MASTER_DATA.historical_ledger.length - 1].holdings
+            : []
+        };
+
+      } else if (strat === 'FAST_ALPHA') {
+        // 🚀 Strategy 2: Fast-Alpha (Top 4 by 14-day return & Inverse Volatility Weighting)
+        const eligible = coins.filter(c => (c.close > c.ema26) && ((c.r14 || 0) > 0));
+        eligible.sort((a, b) => (b.r14 || 0) - (a.r14 || 0));
+
+        const top4 = eligible.slice(0, 4);
+        // Inverse Volatility calculation
+        const invVols = top4.map(c => 1.0 / (c.vol30 || 0.8));
+        const sumInv = invVols.reduce((a, b) => a + b, 0);
+
+        const leaders = top4.map((c, idx) => {
+          const w = sumInv > 0 ? (invVols[idx] / sumInv) * 90.0 : 22.5;
+          return {
+            symbol: c.symbol,
+            close: c.close,
+            price_change_24h: c.price_change_24h,
+            rank_display: 'Alpha #' + (idx + 1),
+            weight_pct: parseFloat(w.toFixed(1)),
+            metric_label: '14d Return',
+            metric_val: '+' + ((c.r14 || 0) * 100).toFixed(1) + '%',
+            reason: 'ผู้นำคลื่นเร็ว 14 วัน (ความผันผวน ' + ((c.vol30 || 0.8) * 100).toFixed(0) + '%)'
+          };
+        });
+
+        return {
+          title: '🚀 คลื่นเร็ว Fast-Alpha (Top 4 14d + Inverse Vol)',
+          badgeText: '🚀 แผนคลื่นเร็ว (Fast-Alpha Grid #1)',
+          desc: 'คัด Top 4 เหรียญที่ผลตอบแทน 14 วันพุ่งแรงที่สุด และถ่วงน้ำหนักตามความนิ่ง (Inverse Vol) เพื่อ Sharpe สูงสุด 2.03',
+          cryptoPct: 90.0,
+          cashPct: 10.0,
+          bufferBadge: 'Buffer Rank 1–6',
+          buyDesc: 'เข้าซื้อ Top 4 ผู้นำคลื่น 14 วัน ถ่วงน้ำหนักตามความนิ่ง',
+          buyFooter: '* ตัวนิ่งกว่าได้น้ำหนักเยอะกว่า รวม 90% ถือเงินสด 10% USDT',
+          leaders: leaders,
+          sellCoins: coins.filter(c => c.close <= c.ema26),
+          holdCoins: leaders
+        };
+
+      } else {
+        // 🛡️ Strategy 3: Core-Satellite (30% Core: BTC/ETH/BNB + 70% Satellite: Top 3 BTH)
+        const eligible = coins.filter(c => c.trend_ok && (c.r30 > 0) && (c.r60 > 0));
+        eligible.sort((a, b) => b.momentum_score - a.momentum_score);
+        const top3Sat = eligible.slice(0, 3);
+
+        const btcCoin = coins.find(c => c.symbol === 'BTCUSDT') || { symbol: 'BTCUSDT', close: mr.btc_price, price_change_24h: 0 };
+        const ethCoin = coins.find(c => c.symbol === 'ETHUSDT') || { symbol: 'ETHUSDT', close: 0, price_change_24h: 0 };
+        const bnbCoin = coins.find(c => c.symbol === 'BNBUSDT') || { symbol: 'BNBUSDT', close: 0, price_change_24h: 0 };
+
+        const leaders = [
+          {
+            symbol: 'BTCUSDT',
+            close: btcCoin.close,
+            price_change_24h: btcCoin.price_change_24h,
+            rank_display: 'Core',
+            weight_pct: 10.0,
+            metric_label: 'Core Anchor',
+            metric_val: '10.0%',
+            reason: 'สมอเรือหลัก Bitcoin'
+          },
+          {
+            symbol: 'ETHUSDT',
+            close: ethCoin.close,
+            price_change_24h: ethCoin.price_change_24h,
+            rank_display: 'Core',
+            weight_pct: 10.0,
+            metric_label: 'Core Anchor',
+            metric_val: '10.0%',
+            reason: 'สมอเรือหลัก Ethereum'
+          },
+          {
+            symbol: 'BNBUSDT',
+            close: bnbCoin.close,
+            price_change_24h: bnbCoin.price_change_24h,
+            rank_display: 'Core',
+            weight_pct: 10.0,
+            metric_label: 'Core Anchor',
+            metric_val: '10.0%',
+            reason: 'สมอเรือหลัก BNB'
+          },
+          ...top3Sat.map((c, idx) => ({
+            symbol: c.symbol,
+            close: c.close,
+            price_change_24h: c.price_change_24h,
+            rank_display: 'Sat #' + (idx + 1),
+            weight_pct: 23.3,
+            metric_label: 'Momentum',
+            metric_val: '+' + (c.momentum_score * 100).toFixed(0) + '%',
+            reason: 'Satellite ผู้นำอันดับ #' + (idx + 1)
+          }))
+        ];
+
+        return {
+          title: '🛡️ พอร์ตสถาบัน Core-Satellite (All-Weather)',
+          badgeText: '🛡️ ผสมสถาบัน (30% Core + 70% Sat)',
+          desc: 'แบ่ง 30% ถือสมอเรือ (BTC/ETH/BNB ตัวละ 10%) + 70% หมุน 3 เหรียญผู้นำ ช่วยลดความผันผวนเหลือเพียง -30%',
+          cryptoPct: 99.9,
+          cashPct: 0.1,
+          bufferBadge: 'Buffer Sat 1–5',
+          buyDesc: 'ถือ Core 30% + ซื้อ Satellite Top 3 ตัวละ 23.3%',
+          buyFooter: '* 30% Core ไม่ต้องสลับ, 70% หมุนตามผู้นำ',
+          leaders: leaders,
+          sellCoins: coins.filter(c => c.signal === 'SELL' && !['BTCUSDT', 'ETHUSDT', 'BNBUSDT'].includes(c.symbol)),
+          holdCoins: leaders
+        };
+      }
     }
 
     function renderTodayAction() {
@@ -317,25 +471,25 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       const todayDate = live.as_of_bkk || new Date().toISOString().slice(0, 10);
       document.getElementById('today-date-text').textContent = 'ข้อมูล ณ วันที่: ' + todayDate;
 
+      const sp = currentStrategyPicks;
+      document.getElementById('hero-strategy-badge').textContent = sp.badgeText;
+      document.getElementById('hero-regime-desc').textContent = sp.desc;
+
       // Hero Market Status
       document.getElementById('hero-regime-name').textContent = mr.regime;
       const badge = document.getElementById('hero-regime-badge');
       if (mr.regime === 'BROAD_BULL') {
         badge.className = 'text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-        badge.textContent = '🟢 ไฟเขียวเต็มสูบ (ลงทุน 95%)';
-        document.getElementById('hero-regime-desc').textContent = 'ตลาดกระทิงวงกว้าง เหรียญส่วนใหญ่ขึ้นพร้อมกัน กระจายลงทุนใน Top 5 ผู้นำที่แข็งแกร่งที่สุด';
+        badge.textContent = `🟢 ไฟเขียวเต็มสูบ (ลงทุน ${sp.cryptoPct}%)`;
       } else if (mr.regime === 'NORMAL_BULL') {
         badge.className = 'text-xs px-2.5 py-0.5 rounded-full font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30';
-        badge.textContent = '🟡 กระทิงปกติ (ลงทุน 90%)';
-        document.getElementById('hero-regime-desc').textContent = 'ตลาดคัดตัวเล่น ถือเฉพาะ Top 3 ผู้นำ และถือเงินสด 10%';
+        badge.textContent = `🟡 กระทิงปกติ (ลงทุน ${sp.cryptoPct}%)`;
       } else if (mr.regime === 'SELECTIVE_BULL') {
         badge.className = 'text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30';
-        badge.textContent = '🟠 ตลาดเลือกตัว (ลงทุน 70%)';
-        document.getElementById('hero-regime-desc').textContent = 'ตลาดผันผวนสูง คัดถือเพียง Top 2 ตัว และถือเงินสดสำรอง 30%';
+        badge.textContent = `🟠 ตลาดเลือกตัว (ลงทุน 70%)`;
       } else {
         badge.className = 'text-xs px-2.5 py-0.5 rounded-full font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30';
         badge.textContent = '🚨 ถือเงินสด 100% USDT';
-        document.getElementById('hero-regime-desc').textContent = 'Bitcoin หลุดเทรนด์หรือตลาดอ่อนแรง สั่งล้างพอร์ตถือ 100% USDT นอกตลาด';
       }
 
       document.getElementById('hero-btc-price').textContent = '$' + Number(mr.btc_price).toLocaleString('en-US', { minimumFractionDigits: 2 });
@@ -345,7 +499,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       // 1. SELL List
       const sellContainer = document.getElementById('sell-coins-list');
       sellContainer.innerHTML = '';
-      const sellCoins = live.coins_table.filter(c => c.signal === 'SELL');
+      const sellCoins = sp.sellCoins || [];
       document.getElementById('cnt-sell-badge').textContent = sellCoins.length + ' ตัว';
 
       if (sellCoins.length === 0) {
@@ -355,12 +509,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           </div>
         `;
       } else {
-        sellCoins.forEach(c => {
+        sellCoins.slice(0, 5).forEach(c => {
           sellContainer.innerHTML += `
             <div class="p-2.5 rounded-lg bg-rose-900/20 border border-rose-800/30 flex items-center justify-between">
               <div>
                 <strong class="text-rose-300 font-bold">${c.symbol}</strong>
-                <span class="text-[10px] text-slate-400 block">${c.action_reason}</span>
+                <span class="text-[10px] text-slate-400 block">${c.action_reason || 'หลุดเส้นแนวโน้ม'}</span>
               </div>
               <span class="px-2 py-0.5 rounded bg-rose-500 text-white font-bold text-[10px]">SELL</span>
             </div>
@@ -368,11 +522,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         });
       }
 
-      // 2. BUY List (Top Leaders)
+      // 2. BUY List (Dynamic Leaders per Strategy)
       const buyContainer = document.getElementById('buy-coins-list');
       buyContainer.innerHTML = '';
-      const buyCoins = live.coins_table.filter(c => c.signal === 'BUY');
+      const buyCoins = sp.leaders || [];
       document.getElementById('cnt-buy-badge').textContent = buyCoins.length + ' ผู้นำ';
+      document.getElementById('buy-column-desc').textContent = sp.buyDesc;
+      document.getElementById('buy-column-footer').textContent = sp.buyFooter;
 
       if (buyCoins.length === 0) {
         buyContainer.innerHTML = `
@@ -381,19 +537,19 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           </div>
         `;
       } else {
-        buyCoins.slice(0, 5).forEach((c, idx) => {
+        buyCoins.forEach((c) => {
           buyContainer.innerHTML += `
             <div class="p-2.5 rounded-lg bg-emerald-900/20 border border-emerald-800/30 flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold">#${idx + 1}</span>
+                <span class="flex h-6 px-1.5 items-center justify-center rounded bg-emerald-600 text-white text-[10px] font-bold">${c.rank_display}</span>
                 <div>
                   <strong class="text-white font-bold">${c.symbol}</strong>
                   <span class="text-[10px] text-slate-400 block">$${formatPrice(c.close)} (${c.price_change_24h >= 0 ? '+' : ''}${c.price_change_24h.toFixed(1)}%)</span>
                 </div>
               </div>
               <div class="text-right">
-                <span class="text-emerald-400 font-bold block text-xs">สัดส่วน 19%</span>
-                <span class="text-[10px] text-slate-400">Score: +${(c.momentum_score * 100).toFixed(0)}%</span>
+                <span class="text-emerald-400 font-bold block text-xs">สัดส่วน ${c.weight_pct}%</span>
+                <span class="text-[10px] text-slate-400">${c.metric_val}</span>
               </div>
             </div>
           `;
@@ -403,23 +559,22 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       // 3. HOLD List
       const holdContainer = document.getElementById('hold-coins-list');
       holdContainer.innerHTML = '';
-      const lastDayHoldings = (MASTER_DATA.historical_ledger && MASTER_DATA.historical_ledger.length > 0)
-        ? MASTER_DATA.historical_ledger[MASTER_DATA.historical_ledger.length - 1].holdings
-        : [];
+      document.getElementById('hold-buffer-badge').textContent = sp.bufferBadge;
+      const holdList = sp.holdCoins || [];
 
-      if (lastDayHoldings.length === 0) {
+      if (holdList.length === 0) {
         holdContainer.innerHTML = `
           <div class="p-3 rounded-lg bg-blue-950/20 border border-blue-900/30 text-slate-300 text-xs">
             ปัจจุบันถือเงินสด 100% USDT รอเข้าซื้อผู้นำรอบใหม่
           </div>
         `;
       } else {
-        lastDayHoldings.forEach(h => {
+        holdList.slice(0, 5).forEach(h => {
           holdContainer.innerHTML += `
             <div class="p-2.5 rounded-lg bg-blue-900/20 border border-blue-800/30 flex items-center justify-between">
               <div>
                 <strong class="text-white font-bold">${h.symbol}</strong>
-                <span class="text-[10px] text-slate-400 block">${h.units.toFixed(2)} units ($${formatPrice(h.price)})</span>
+                <span class="text-[10px] text-slate-400 block">${h.units ? h.units.toFixed(2) + ' units' : 'อยู่ในเกราะหน่วงอันดับ'} ($${formatPrice(h.price || h.close)})</span>
               </div>
               <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold text-[10px] border border-blue-500/30">HOLD ต่อ</span>
             </div>
@@ -430,13 +585,15 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
     function updateQuickCalc() {
       const nav = parseFloat(document.getElementById('quick-nav-input').value) || 10000;
-      const perCoin = (nav * 0.19).toFixed(2);
-      const cash = (nav * 0.05).toFixed(2);
-      const fee = (nav * 0.95 * 0.00075).toFixed(2);
+      const sp = currentStrategyPicks || computeStrategyPicks(currentStrategy);
 
-      document.getElementById('calc-per-coin').textContent = '$' + Number(perCoin).toLocaleString() + ' USDT';
-      document.getElementById('calc-cash-reserve').textContent = '$' + Number(cash).toLocaleString() + ' USDT';
-      document.getElementById('calc-fee-est').textContent = '~$' + fee + ' USDT';
+      const cryptoVal = nav * (sp.cryptoPct / 100.0);
+      const cashVal = nav * (sp.cashPct / 100.0);
+      const feeEst = cryptoVal * 0.00075;
+
+      document.getElementById('calc-total-crypto').textContent = '$' + Number(cryptoVal.toFixed(2)).toLocaleString() + ' USDT';
+      document.getElementById('calc-cash-reserve').textContent = '$' + Number(cashVal.toFixed(2)).toLocaleString() + ' USDT';
+      document.getElementById('calc-fee-est').textContent = '~$' + feeEst.toFixed(2) + ' USDT';
     }
 
     function renderPastTimeline() {
@@ -445,7 +602,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       const query = (document.getElementById('timeline-search-input')?.value || '').trim().toUpperCase();
 
       const ledger = MASTER_DATA.historical_ledger || [];
-      // Take the latest 30 days
       const sliceDays = ledger.slice(-30).reverse();
 
       sliceDays.forEach(day => {
@@ -528,8 +684,9 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           <td class="py-2 px-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] ${sigBadge}">${c.signal_badge}</span></td>
           <td class="py-2 px-3 text-right font-bold text-white">$${formatPrice(c.close)}</td>
           <td class="py-2 px-3 text-right font-bold ${pCls}">${c.price_change_24h >= 0 ? '+' : ''}${c.price_change_24h.toFixed(1)}%</td>
-          <td class="py-2 px-3 text-right text-emerald-400 font-bold">+${(c.momentum_score * 100).toFixed(0)}%</td>
+          <td class="py-2 px-3 text-right text-slate-300">${c.r14 ? (c.r14 * 100).toFixed(1) + '%' : '-'}</td>
           <td class="py-2 px-3 text-right text-slate-300">${(c.r30 * 100).toFixed(0)}%</td>
+          <td class="py-2 px-3 text-right text-emerald-400 font-bold">+${(c.momentum_score * 100).toFixed(0)}%</td>
           <td class="py-2 px-3 text-center text-[10px]">${c.trend_ok ? '<span class="text-emerald-400 font-bold">✓ PASS</span>' : '<span class="text-rose-400 font-bold">✗ FAIL</span>'}</td>
           <td class="py-2 px-3 text-[11px] text-slate-400 font-sans max-w-xs truncate">${c.action_reason}</td>
         `;
@@ -560,7 +717,7 @@ def generate_html():
     if PARENT_HTML.parent.exists():
         PARENT_HTML.write_text(html, encoding="utf-8")
 
-    print(f"[+] Successfully generated Simplified Action-First Dashboard HTML:")
+    print(f"[+] Successfully generated Dynamic Strategy-Aware Dashboard HTML:")
     print(f"    - Output: {OUT_HTML} ({len(html):,} bytes)")
     print(f"    - Parent: {PARENT_HTML} ({len(html):,} bytes)")
 
