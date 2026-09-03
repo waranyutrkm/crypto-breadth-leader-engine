@@ -5,6 +5,7 @@ Designed around the user's primary mental model:
 1. วันนี้ต้องทำอะไร? (What to do TODAY: Buy, Sell, Hold, and exact USDT amount).
 2. ก่อนหน้านี้ทำอะไรมาบ้าง? (Past Action History & Timeline: plain-language trade logs).
 3. สลับแผนแล้วเหรียญและสัดส่วนต้องเปลี่ยนทันที (BTH_C2LR vs Fast-Alpha vs Core-Satellite).
+4. มีปุ่มกดสั่งรันคำนวณใหม่ชัดเจน พร้อมตารางแจกแจงยอดเงินซื้อรายเหรียญ.
 """
 
 from __future__ import annotations
@@ -22,6 +23,9 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Binance Leader Rotation Hub — วันนี้ต้องทำอะไร & ประวัติย้อนหลัง</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
@@ -53,6 +57,19 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       background: #121824;
       border: 1px solid #1e283b;
     }
+    .strat-card-active {
+      background: #152238;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 1px #3b82f6, 0 10px 25px -5px rgba(59, 130, 246, 0.2);
+    }
+    @keyframes pulseFade {
+      0% { opacity: 0.4; transform: scale(0.99); }
+      50% { opacity: 1; transform: scale(1); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .just-updated {
+      animation: pulseFade 0.4s ease-out;
+    }
   </style>
 </head>
 <body class="min-h-screen p-3 md:p-6 max-w-5xl mx-auto space-y-6">
@@ -72,19 +89,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- Quick Strategy Switcher (3 Strategies) -->
-    <div class="flex flex-wrap items-center gap-2">
-      <div class="flex rounded-lg bg-[#0e131d] border border-[#232f45] p-1 text-xs font-semibold">
-        <button id="btn-strat-bth" onclick="setStrategy('BTH_C2LR')" class="px-3 py-1.5 rounded bg-blue-600 text-white font-bold transition">
-          🏆 แผนหลัก (BTH_C2LR)
-        </button>
-        <button id="btn-strat-fast" onclick="setStrategy('FAST_ALPHA')" class="px-3 py-1.5 rounded text-slate-400 hover:text-white transition">
-          🚀 คลื่นเร็ว (Fast-Alpha)
-        </button>
-        <button id="btn-strat-core" onclick="setStrategy('CORE_SATELLITE')" class="px-3 py-1.5 rounded text-slate-400 hover:text-white transition">
-          🛡️ ผสมสถาบัน (Core-Sat)
-        </button>
-      </div>
+    <!-- Header Actions -->
+    <div class="flex items-center gap-2">
+      <button onclick="location.reload(true)" class="rounded-lg bg-[#151c2a] hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition flex items-center gap-1.5" title="ล้างแคชและรีเฟรชข้อมูลล่าสุด">
+        🔄 รีเฟรชข้อมูล
+      </button>
       <a href="https://github.com/waranyutrkm/crypto-breadth-leader-engine" target="_blank" class="rounded-lg bg-[#151c2a] hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition flex items-center gap-1.5" title="อ่านคู่มือและสูตรคำนวณฉบับเต็มบน GitHub">
         📘 คู่มือบน GitHub
       </a>
@@ -95,7 +104,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   <!-- SECTION 1: 🎯 วันนี้ต้องทำอะไร? (WHAT TO DO TODAY) -->
   <!-- ================================================================= -->
   <section class="space-y-4">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
       <h2 class="text-lg font-extrabold text-white flex items-center gap-2">
         <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600/20 text-blue-400 font-bold">1</span>
         <span>วันนี้ต้องทำอะไร? (Today's Direct Action Plan)</span>
@@ -103,14 +112,78 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <span class="text-xs font-mono text-slate-400" id="today-date-text">--</span>
     </div>
 
+    <!-- 3 Large Selectable Strategy Cards (คลิกเพื่อสลับแผนทันที) -->
+    <div class="space-y-2">
+      <div class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+        <span>คลิกเลือกแผนการเทรดที่ต้องการ (คลิกเพื่อเปลี่ยนเหรียญและสัดส่วนคำนวณ):</span>
+        <span class="text-[11px] text-blue-400 font-mono" id="active-strat-indicator">กำลังใช้งาน: BTH_C2LR</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <!-- Card 1: BTH_C2LR -->
+        <div onclick="setStrategy('BTH_C2LR')" id="card-strat-BTH_C2LR" class="p-3.5 rounded-xl border cursor-pointer transition flex flex-col justify-between strat-card-active">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">🏆 แนะนำสำหรับทุกคน</span>
+              <span class="text-[11px] font-bold text-blue-400 checkmark">✓ เลือกอยู่</span>
+            </div>
+            <h3 class="text-xs font-bold text-white mb-0.5">1. แผนหลัก (BTH_C2LR)</h3>
+            <p class="text-[11px] text-slate-400 line-clamp-2">โมเมนตัม 3 มิติเวลา (30/60/120 วัน) ถือ 5 ผู้นำตัวละ 19% เท่ากัน</p>
+          </div>
+          <div class="pt-2 border-t border-[#1e283b] mt-2 flex justify-between text-[10px] font-mono">
+            <span class="text-slate-400">CAGR: <strong class="text-emerald-400">+49.3%</strong></span>
+            <span class="text-slate-400">MaxDD: <strong class="text-rose-400">-30.4%</strong></span>
+          </div>
+        </div>
+
+        <!-- Card 2: FAST_ALPHA -->
+        <div onclick="setStrategy('FAST_ALPHA')" id="card-strat-FAST_ALPHA" class="p-3.5 rounded-xl border border-[#1e283b] bg-[#121824] hover:border-slate-600 cursor-pointer transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🚀 ผลตอบแทนสูงสุด</span>
+              <span class="text-[11px] font-bold text-slate-500 checkmark hidden">✓ เลือกอยู่</span>
+            </div>
+            <h3 class="text-xs font-bold text-white mb-0.5">2. แผนคลื่นเร็ว (Fast-Alpha)</h3>
+            <p class="text-[11px] text-slate-400 line-clamp-2">โมเมนตัมคลื่น 14 วัน + ถ่วงน้ำหนักตามความนิ่ง (Inverse Vol) ถือ 4 ตัว</p>
+          </div>
+          <div class="pt-2 border-t border-[#1e283b] mt-2 flex justify-between text-[10px] font-mono">
+            <span class="text-slate-400">CAGR: <strong class="text-emerald-400">+170.7%</strong></span>
+            <span class="text-slate-400">Sharpe: <strong class="text-blue-400">2.03</strong></span>
+          </div>
+        </div>
+
+        <!-- Card 3: CORE_SATELLITE -->
+        <div onclick="setStrategy('CORE_SATELLITE')" id="card-strat-CORE_SATELLITE" class="p-3.5 rounded-xl border border-[#1e283b] bg-[#121824] hover:border-slate-600 cursor-pointer transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">🛡️ พอร์ตสถาบัน</span>
+              <span class="text-[11px] font-bold text-slate-500 checkmark hidden">✓ เลือกอยู่</span>
+            </div>
+            <h3 class="text-xs font-bold text-white mb-0.5">3. ผสมสถาบัน (Core-Sat)</h3>
+            <p class="text-[11px] text-slate-400 line-clamp-2">30% ถือสมอเรือ (BTC/ETH/BNB) + 70% หมุนตาม 3 ผู้นำ ลดเสี่ยงสูงสุด</p>
+          </div>
+          <div class="pt-2 border-t border-[#1e283b] mt-2 flex justify-between text-[10px] font-mono">
+            <span class="text-slate-400">CAGR: <strong class="text-emerald-400">+38.5%</strong></span>
+            <span class="text-slate-400">MaxDD: <strong class="text-emerald-400">-30.4%</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Main Market Status Hero Card -->
     <div class="card-dark rounded-2xl p-5 relative overflow-hidden border border-blue-500/30">
+      <!-- Strategy Alert Toast Banner -->
+      <div id="strategy-alert-toast" class="mb-4 p-2.5 rounded-xl bg-blue-600/20 border border-blue-500/40 text-blue-300 text-xs font-bold flex items-center justify-between">
+        <span class="flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-blue-400 animate-ping"></span>
+          <span id="toast-text">กำลังใช้งาน แผนหลัก (BTH_C2LR): กระจายลงทุนใน Top 5 ผู้นำ สัดส่วนตัวละ 19%</span>
+        </span>
+        <span class="text-[10px] text-slate-400 font-mono">Real-Time Computed</span>
+      </div>
+
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1e283b] pb-4 mb-4">
         <div>
-          <div class="flex items-center gap-2 mb-1">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">กำลังใช้งานกลยุทธ์:</span>
-            <span class="text-xs font-bold text-blue-400 px-2 py-0.5 rounded bg-blue-500/15 border border-blue-500/30" id="hero-strategy-badge">--</span>
-          </div>
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">สถานะตลาดภาพรวมวันนี้:</div>
           <div class="text-2xl font-black flex items-center gap-2.5" id="hero-regime-title">
             <span class="h-3 w-3 rounded-full bg-emerald-400 animate-pulse"></span>
             <span class="text-white" id="hero-regime-name">--</span>
@@ -193,28 +266,63 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         </div>
       </div>
 
-      <!-- Quick Money Calculator -->
-      <div class="rounded-xl bg-[#0e131d] border border-[#1e283b] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <div class="text-xs font-bold text-slate-300 whitespace-nowrap">💵 คำนวณเงินทุนของคุณ:</div>
-          <div class="relative w-44">
-            <input type="number" id="quick-nav-input" value="10000" step="500" oninput="updateQuickCalc()" class="w-full rounded-lg bg-[#151c2a] border border-[#232f45] px-3 py-1.5 text-xs font-bold font-mono text-white focus:outline-none focus:border-blue-500">
-            <span class="absolute right-2.5 top-1.5 text-[10px] font-bold text-slate-400">USDT</span>
+      <!-- Quick Money Calculator & Breakdown -->
+      <div class="rounded-xl bg-[#0e131d] border border-[#1e283b] p-4 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="text-xs font-bold text-slate-300 whitespace-nowrap">💵 คำนวณเงินทุนของคุณ:</div>
+            <div class="relative w-44">
+              <input type="number" id="quick-nav-input" value="10000" step="500" oninput="updateQuickCalc()" class="w-full rounded-lg bg-[#151c2a] border border-[#232f45] px-3 py-1.5 text-xs font-bold font-mono text-white focus:outline-none focus:border-blue-500">
+              <span class="absolute right-2.5 top-1.5 text-[10px] font-bold text-slate-400">USDT</span>
+            </div>
+          </div>
+
+          <!-- Recalculate Button -->
+          <div class="flex items-center gap-2">
+            <button onclick="recalculateAll()" class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/20 flex items-center gap-1.5">
+              ⚡ กดรันคำนวณยอดเงินใหม่ (Recalculate)
+            </button>
           </div>
         </div>
 
-        <div class="flex items-center gap-4 text-xs font-mono">
+        <!-- Top Totals Bar -->
+        <div class="grid grid-cols-3 gap-2 text-xs font-mono p-3 rounded-lg bg-[#121824] border border-[#1e283b]">
           <div>
             <span class="text-slate-400 text-[10px] block">ยอดซื้อรวม (Crypto):</span>
             <strong class="text-emerald-400 font-bold text-sm" id="calc-total-crypto">$0.00 USDT</strong>
           </div>
-          <div class="border-l border-slate-700 pl-4">
+          <div class="border-l border-slate-700 pl-3">
             <span class="text-slate-400 text-[10px] block">สำรองเงินสด (Cash):</span>
             <strong class="text-amber-400 font-bold text-sm" id="calc-cash-reserve">$0.00 USDT</strong>
           </div>
-          <div class="border-l border-slate-700 pl-4">
+          <div class="border-l border-slate-700 pl-3">
             <span class="text-slate-400 text-[10px] block">ค่าคอม Binance (0.075%):</span>
             <strong class="text-slate-300 font-bold text-sm" id="calc-fee-est">~$0.00 USDT</strong>
+          </div>
+        </div>
+
+        <!-- Individual Coin Order Breakdown Table -->
+        <div>
+          <div class="text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center justify-between">
+            <span>📋 ตารางแจกแจงยอดเงินที่ต้องกดซื้อรายเหรียญ (Exact Order Amounts):</span>
+            <span class="text-emerald-400 font-mono" id="breakdown-strategy-name">--</span>
+          </div>
+          <div class="overflow-x-auto rounded-lg border border-[#1e283b] bg-[#121824]">
+            <table class="w-full text-left text-xs font-mono">
+              <thead class="bg-[#0e131d] text-slate-400 border-b border-[#232f45]">
+                <tr>
+                  <th class="py-2 px-3">ลำดับ</th>
+                  <th class="py-2 px-3">เหรียญ (Symbol)</th>
+                  <th class="py-2 px-3 text-right">ราคา ($)</th>
+                  <th class="py-2 px-3 text-right">สัดส่วน (%)</th>
+                  <th class="py-2 px-3 text-right text-emerald-400 font-bold">ยอดเงินที่ต้องซื้อ (USDT)</th>
+                  <th class="py-2 px-3">คำสั่งที่ต้องส่งใน Binance</th>
+                </tr>
+              </thead>
+              <tbody id="calculator-breakdown-tbody" class="divide-y divide-[#1e283b] text-slate-200">
+                <!-- Injected by JS -->
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -304,19 +412,56 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
     function setStrategy(strat) {
       currentStrategy = strat;
-      const btnBth = document.getElementById('btn-strat-bth');
-      const btnFast = document.getElementById('btn-strat-fast');
-      const btnCore = document.getElementById('btn-strat-core');
 
-      // Update button highlights
-      btnBth.className = (strat === 'BTH_C2LR') ? 'px-3 py-1.5 rounded bg-blue-600 text-white font-bold transition' : 'px-3 py-1.5 rounded text-slate-400 hover:text-white transition';
-      btnFast.className = (strat === 'FAST_ALPHA') ? 'px-3 py-1.5 rounded bg-blue-600 text-white font-bold transition' : 'px-3 py-1.5 rounded text-slate-400 hover:text-white transition';
-      btnCore.className = (strat === 'CORE_SATELLITE') ? 'px-3 py-1.5 rounded bg-blue-600 text-white font-bold transition' : 'px-3 py-1.5 rounded text-slate-400 hover:text-white transition';
+      // Update Card Borders & Checkmarks
+      ['BTH_C2LR', 'FAST_ALPHA', 'CORE_SATELLITE'].forEach(s => {
+        const card = document.getElementById('card-strat-' + s);
+        if (!card) return;
+        const checkmark = card.querySelector('.checkmark');
+        if (s === strat) {
+          card.className = 'p-3.5 rounded-xl border cursor-pointer transition flex flex-col justify-between strat-card-active';
+          if (checkmark) {
+            checkmark.classList.remove('hidden');
+            checkmark.textContent = '✓ เลือกอยู่';
+            checkmark.className = 'text-[11px] font-bold text-blue-400 checkmark';
+          }
+        } else {
+          card.className = 'p-3.5 rounded-xl border border-[#1e283b] bg-[#121824] hover:border-slate-600 cursor-pointer transition flex flex-col justify-between';
+          if (checkmark) {
+            checkmark.classList.add('hidden');
+          }
+        }
+      });
 
-      // Dynamically calculate picks for this strategy!
+      document.getElementById('active-strat-indicator').textContent = 'กำลังใช้งาน: ' + strat;
+
+      // Recalculate picks dynamically
       currentStrategyPicks = computeStrategyPicks(strat);
       renderTodayAction();
       updateQuickCalc();
+
+      // Show toast animation
+      const toast = document.getElementById('strategy-alert-toast');
+      if (toast) {
+        toast.classList.remove('just-updated');
+        void toast.offsetWidth; // trigger reflow
+        toast.classList.add('just-updated');
+        document.getElementById('toast-text').textContent = `สลับเป็น ${currentStrategyPicks.title}: รายชื่อเหรียญและสัดส่วนคำนวณใหม่แล้ว!`;
+      }
+    }
+
+    function recalculateAll() {
+      currentStrategyPicks = computeStrategyPicks(currentStrategy);
+      renderTodayAction();
+      updateQuickCalc();
+
+      const toast = document.getElementById('strategy-alert-toast');
+      if (toast) {
+        toast.classList.remove('just-updated');
+        void toast.offsetWidth;
+        toast.classList.add('just-updated');
+        document.getElementById('toast-text').textContent = `✓ คำนวณพอร์ตและยอดเงินใหม่เรียบร้อยแล้ว (${new Date().toLocaleTimeString()} BKK)`;
+      }
     }
 
     // =================================================================
@@ -343,6 +488,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         }));
 
         return {
+          id: 'BTH_C2LR',
           title: '🏆 แผนหลัก BTH_C2LR (Top 5 Multi-Scale)',
           badgeText: '🏆 แผนหลัก (BTH_C2LR v2.0)',
           desc: 'กระจายลงทุนใน Top 5 ผู้นำที่แข็งแกร่งที่สุดใน 3 มิติเวลา (30/60/120 วัน) ถือเท่ากันตัวละ 19% สำรองเงินสด 5%',
@@ -383,13 +529,14 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         });
 
         return {
+          id: 'FAST_ALPHA',
           title: '🚀 คลื่นเร็ว Fast-Alpha (Top 4 14d + Inverse Vol)',
           badgeText: '🚀 แผนคลื่นเร็ว (Fast-Alpha Grid #1)',
           desc: 'คัด Top 4 เหรียญที่ผลตอบแทน 14 วันพุ่งแรงที่สุด และถ่วงน้ำหนักตามความนิ่ง (Inverse Vol) เพื่อ Sharpe สูงสุด 2.03',
           cryptoPct: 90.0,
           cashPct: 10.0,
           bufferBadge: 'Buffer Rank 1–6',
-          buyDesc: 'เข้าซื้อ Top 4 ผู้นำคลื่น 14 วัน ถ่วงน้ำหนักตามความนิ่ง',
+          buyDesc: 'เข้าซื้อ Top 4 ผู้นำคลื่น 14 วัน ถ่วงน้ำหนักตามความนิ่ง (Inverse Vol)',
           buyFooter: '* ตัวนิ่งกว่าได้น้ำหนักเยอะกว่า รวม 90% ถือเงินสด 10% USDT',
           leaders: leaders,
           sellCoins: coins.filter(c => c.close <= c.ema26),
@@ -450,6 +597,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         ];
 
         return {
+          id: 'CORE_SATELLITE',
           title: '🛡️ พอร์ตสถาบัน Core-Satellite (All-Weather)',
           badgeText: '🛡️ ผสมสถาบัน (30% Core + 70% Sat)',
           desc: 'แบ่ง 30% ถือสมอเรือ (BTC/ETH/BNB ตัวละ 10%) + 70% หมุน 3 เหรียญผู้นำ ช่วยลดความผันผวนเหลือเพียง -30%',
@@ -472,7 +620,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       document.getElementById('today-date-text').textContent = 'ข้อมูล ณ วันที่: ' + todayDate;
 
       const sp = currentStrategyPicks;
-      document.getElementById('hero-strategy-badge').textContent = sp.badgeText;
       document.getElementById('hero-regime-desc').textContent = sp.desc;
 
       // Hero Market Status
@@ -594,6 +741,34 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       document.getElementById('calc-total-crypto').textContent = '$' + Number(cryptoVal.toFixed(2)).toLocaleString() + ' USDT';
       document.getElementById('calc-cash-reserve').textContent = '$' + Number(cashVal.toFixed(2)).toLocaleString() + ' USDT';
       document.getElementById('calc-fee-est').textContent = '~$' + feeEst.toFixed(2) + ' USDT';
+      document.getElementById('breakdown-strategy-name').textContent = sp.title;
+
+      // Render Individual Coin Breakdown Table
+      const bTbody = document.getElementById('calculator-breakdown-tbody');
+      bTbody.innerHTML = '';
+      const leaders = sp.leaders || [];
+
+      if (leaders.length === 0) {
+        bTbody.innerHTML = '<tr><td colspan="6" class="py-3 text-center text-slate-500">ถือ 100% USDT Cash Guard (ไม่มีรายการสั่งซื้อ)</td></tr>';
+        return;
+      }
+
+      leaders.forEach((c, idx) => {
+        const orderDollar = (nav * (c.weight_pct / 100.0)).toFixed(2);
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-[#151c2a] transition';
+        tr.innerHTML = `
+          <td class="py-2 px-3 text-slate-400 font-bold">${c.rank_display}</td>
+          <td class="py-2 px-3 font-bold text-white">${c.symbol}</td>
+          <td class="py-2 px-3 text-right text-slate-300">$${formatPrice(c.close)}</td>
+          <td class="py-2 px-3 text-right font-bold text-slate-200">${c.weight_pct}%</td>
+          <td class="py-2 px-3 text-right font-bold text-emerald-400 text-sm">$${Number(orderDollar).toLocaleString()} USDT</td>
+          <td class="py-2 px-3 text-[11px] text-emerald-300 font-sans">
+            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">BUY MARKET</span> ${c.reason}
+          </td>
+        `;
+        bTbody.appendChild(tr);
+      });
     }
 
     function renderPastTimeline() {
@@ -717,7 +892,7 @@ def generate_html():
     if PARENT_HTML.parent.exists():
         PARENT_HTML.write_text(html, encoding="utf-8")
 
-    print(f"[+] Successfully generated Dynamic Strategy-Aware Dashboard HTML:")
+    print(f"[+] Successfully generated Action-First Dashboard with Recalculate Button & Order Breakdown:")
     print(f"    - Output: {OUT_HTML} ({len(html):,} bytes)")
     print(f"    - Parent: {PARENT_HTML} ({len(html):,} bytes)")
 
